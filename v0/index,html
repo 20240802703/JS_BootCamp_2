@@ -1,0 +1,259 @@
+<!DOCTYPE html> 
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Responsive Todo App with Dark Mode</title>
+    <style>
+        :root {
+            --background-light: #f8f9fa;
+            --background-dark: #1e1e1e;
+            --text-light: #333;
+            --text-dark: #f5f5f5;
+            --container-light: #ffffff;
+            --container-dark: #2c2c2c;
+            --line-color-light: #333;
+            --line-color-dark: yellow;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: var(--background-light);
+            color: var(--text-light);
+            transition: background-color 0.3s, color 0.3s;
+            overflow: hidden;
+        }
+
+        .todo-container {
+            padding: 1rem;
+            max-height: calc(100vh - 60px);
+            margin: 1rem;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            overflow-y: auto;
+        }
+
+        #todo_input {
+            border: none;
+            font-size: 1.2rem;
+            margin-bottom: 0.5rem;
+            width: 100%;
+            outline: none;
+            padding: 0.5rem;
+            border-bottom: 2px solid var(--line-color-light);
+            background: none;
+            color: inherit;
+            transition: border-bottom-color 0.3s ease;
+        }
+
+        #todo_input::placeholder {
+            color: #aaa;
+        }
+
+        #todo_display {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            overflow-y: auto;
+        }
+
+        .todo-item {
+            display: inline-flex;
+            flex-direction: column;
+            flex: 1 1 auto;
+            padding: 0.5rem;
+            border-radius: 5px;
+            background-color: var(--container-light);
+            transition: background-color 0.3s, border-bottom 0.3s;
+            border-bottom: 2px solid transparent;
+            box-sizing: border-box;
+            width: auto;
+            opacity: 1;
+            transition: opacity 0.5s ease;
+        }
+
+        .todo-item.fade-out {
+            opacity: 0;
+        }
+
+        .todo-item .title {
+            font-size: 1rem;
+            font-weight: bold;
+            white-space: nowrap;
+        }
+
+        .todo-item .description {
+            font-size: 0.9rem;
+            color: #666;
+            margin-top: 0.25rem;
+        }
+
+        .todo-item button {
+            margin-top: 0.5rem;
+            padding: 0.3rem 0.6rem;
+            border: none;
+            background-color: #007bff;
+            color: white;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+
+        .todo-item button:hover {
+            background-color: #0056b3;
+        }
+
+        .dark-mode {
+            --background-light: #1e1e1e;
+            --background-dark: #f8f9fa;
+            --text-light: #f5f5f5;
+            --text-dark: #333;
+            --container-light: #2c2c2c;
+            --container-dark: #ffffff;
+            --line-color-light: yellow;
+            --line-color-dark: yellow;
+        }
+
+        #darkModeToggle, #clearAllButton {
+            position: fixed;
+            top: 10px;
+            font-size: 1rem;
+            cursor: pointer;
+            padding: 0.5rem;
+            border: none;
+            border-radius: 3px;
+            color: white;
+        }
+
+        #darkModeToggle {
+            right: 10px;
+            background: transparent;
+        }
+
+        #clearAllButton {
+            right: 60px;
+            background-color: #d9534f;
+        }
+
+        #clearAllButton:hover {
+            background-color: #c9302c;
+        }
+
+        #transitionOverlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: var(--background-light);
+            z-index: 1000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.5s ease;
+        }
+        .transition-active #transitionOverlay {
+            opacity: 1;
+            pointer-events: all;
+        }
+    </style>
+</head>
+<body>
+    <button id="darkModeToggle" onclick="toggleDarkMode()">🌙</button>
+    <button id="clearAllButton" onclick="clearAllTodos()">Clear All</button>
+    <div class="todo-container">
+        <input type="text" id="todo_input" placeholder="Type a todo and press Enter">
+        <div id="todo_display"></div>
+    </div>
+
+    <div id="transitionOverlay"></div>
+
+    <script>
+        const todoInput = document.getElementById("todo_input");
+        const todoDisplay = document.getElementById("todo_display");
+        const transitionOverlay = document.getElementById("transitionOverlay");
+        let todos = JSON.parse(localStorage.getItem("todos")) || [];
+
+        document.addEventListener("DOMContentLoaded", () => {
+            updateTodoDisplay();
+        });
+
+        todoInput.addEventListener("keydown", function(event) {
+            if (event.key === "Enter" && todoInput.value.trim() !== "") {
+                addTodo();
+            }
+        });
+
+        function encodeHTML(str) {
+            return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+        }
+
+        function addTodo() {
+            const [title, description = ""] = todoInput.value.split("-");
+            const newTodo = {
+                Title: encodeHTML(title.trim()),
+                Description: encodeHTML(description.trim()),
+                completion: false
+            };
+            if (!todos.some(todo => todo.Title === newTodo.Title && todo.Description === newTodo.Description)) {
+                todos.push(newTodo);
+                updateLocalStorage();
+                updateTodoDisplay();
+            } else {
+                alert("This task already exists!");
+            }
+            todoInput.value = "";
+        }
+
+        function updateTodoDisplay() {
+            todoDisplay.innerHTML = "";
+            todos.forEach((todo, index) => {
+                const todoElement = document.createElement("div");
+                todoElement.className = "todo-item";
+                todoElement.innerHTML = `
+                    <div class="title">${todo.Title}</div>
+                    <div class="description">${todo.Description}</div>
+                    <button onclick="toggleCompletion(${index})">
+                        ${todo.completion ? '✓ Completed' : 'Mark as Completed'}
+                    </button>
+                `;
+                todoDisplay.appendChild(todoElement);
+            });
+        }
+
+        function toggleCompletion(index) {
+            const todoElement = todoDisplay.children[index];
+            todoElement.classList.add("fade-out");
+            setTimeout(() => {
+                todos.splice(index, 1);
+                updateLocalStorage();
+                updateTodoDisplay();
+            }, 500);
+        }
+
+        function toggleDarkMode() {
+            document.body.classList.add("transition-active");
+            setTimeout(() => {
+                document.body.classList.toggle("dark-mode");
+                const toggleButton = document.getElementById("darkModeToggle");
+                toggleButton.textContent = document.body.classList.contains("dark-mode") ? "☀️" : "🌙";
+                document.body.classList.remove("transition-active");
+            }, 500);
+        }
+
+        function clearAllTodos() {
+            const confirmation = confirm("Are you sure you want to clear all todos?");
+            if (confirmation) {
+                todos = [];
+                updateLocalStorage();
+                updateTodoDisplay();
+            }
+        }
+
+        function updateLocalStorage() {
+            localStorage.setItem("todos", JSON.stringify(todos));
+        }
+    </script>
+</body>
+</html>
